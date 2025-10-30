@@ -1,3 +1,8 @@
+## Screenshots
+
+![App Screenshot](screenshots/app-screenshot.png)
+
+
 # Timetable Website
 
 A modern timetable management web application built with React, TypeScript, and Tailwind CSS.
@@ -31,10 +36,6 @@ A modern timetable management web application built with React, TypeScript, and 
 ## Usage
 
 Open your browser and navigate to `http://localhost:5173` (or the port shown in the terminal).
-
-## Screenshots
-
-![App Screenshot](screenshots/app-screenshot.png)
 
 ## Technologies Used
 
