@@ -34,7 +34,7 @@ Open your browser and navigate to `http://localhost:5173` (or the port shown in 
 
 ## Screenshots
 
-![App Screenshot](screenshots/Screenshot%202025-10-30%20204936.png)
+![App Screenshot](screenshots/app-screenshot.png)
 
 ## Technologies Used
 
