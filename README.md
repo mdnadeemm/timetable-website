@@ -34,15 +34,7 @@ Open your browser and navigate to `http://localhost:5173` (or the port shown in 
 
 ## Screenshots
 
-<!-- Add your screenshots here -->
-<!-- Example: ![Timetable View](screenshots/timetable.png) -->
-
-To add a screenshot:
-1. Run the app locally using `npm run dev`
-2. Open the app in your browser
-3. Take a screenshot of the interface
-4. Save the image in the `screenshots/` folder (e.g., `screenshots/app-screenshot.png`)
-5. Add it to this section using Markdown: `![Description](screenshots/app-screenshot.png)`
+![App Screenshot](screenshots/Screenshot%202025-10-30%20204936.png)
 
 ## Technologies Used
 
