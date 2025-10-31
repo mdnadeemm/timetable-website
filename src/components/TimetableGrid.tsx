@@ -33,28 +33,10 @@ export const TimetableGrid: React.FC<{
   const draggingRef = useRef<boolean>(false)
   const currentDisplayZoomRef = useRef<number>(2)
 
-  // Calculate time range from events or use default
+  // Always show 24 hours (0-24)
   const timeRange = useMemo(() => {
-    if (events.length === 0) {
-      return { startHour: 6, endHour: 24 }
-    }
-    
-    let minMinutes = Infinity
-    let maxMinutes = -Infinity
-    
-    events.forEach(event => {
-      const start = parseTimeString(event.startTime)
-      const end = parseTimeString(event.endTime)
-      if (start !== -1) minMinutes = Math.min(minMinutes, start)
-      if (end !== -1) maxMinutes = Math.max(maxMinutes, end)
-    })
-    
-    // Add some padding
-    const startHour = Math.max(0, Math.floor(minMinutes / 60) - 1)
-    const endHour = Math.min(24, Math.ceil(maxMinutes / 60) + 1)
-    
-    return { startHour, endHour }
-  }, [events])
+    return { startHour: 0, endHour: 24 }
+  }, [])
 
   // Generate zoomed time slots based on display zoom level (for smooth transitions)
   const TIMES = useMemo(() => {

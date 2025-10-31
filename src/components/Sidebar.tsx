@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button } from './ui/button'
-import { Calendar, Settings, Users, Clock, BookOpen, BarChart3, Download, Bell } from 'lucide-react'
+import { Calendar, Settings, Users, Clock, BookOpen, BarChart3, Download } from 'lucide-react'
 import { ExportImport } from './ExportImport'
 import { Settings as SettingsComponent } from './Settings'
 import { TimeSlots } from './TimeSlots'
@@ -119,20 +119,6 @@ export const Sidebar: React.FC = () => {
             Export/Import
           </Button>
         </nav>
-
-        <div className="px-6 pb-6 pt-6 border-t border-border flex-shrink-0">
-          <h3 className="text-sm font-medium text-muted-foreground mb-3">Quick Actions</h3>
-          <div className="space-y-2">
-            <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setActiveView('export')}>
-              <Download className="w-4 h-4 mr-2" />
-              Export PDF
-            </Button>
-            <Button variant="outline" size="sm" className="w-full justify-start">
-              <Bell className="w-4 h-4 mr-2" />
-              Set Reminder
-            </Button>
-          </div>
-        </div>
 
         {/* Dynamic Content Area - Scrollable */}
         {activeView !== 'timetable' && (

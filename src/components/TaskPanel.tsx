@@ -398,10 +398,19 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         const reader = new FileReader()
         reader.onload = (e) => {
           const dataUrl = e.target?.result as string
+          
+          // Detect markdown files by extension if MIME type is not set correctly
+          let fileType = file.type
+          if (!fileType || fileType === 'application/octet-stream') {
+            if (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) {
+              fileType = 'text/markdown'
+            }
+          }
+          
           resolve({
             id: uuidv4(),
             name: file.name,
-            type: file.type,
+            type: fileType,
             size: file.size,
             data: dataUrl,
             uploadedAt: new Date()
@@ -526,6 +535,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     if (type.includes('pdf')) return FileText
     if (type.includes('excel') || type.includes('spreadsheet') || type.includes('csv')) return FileSpreadsheet
     if (type.includes('word') || type.includes('document')) return FileText
+    if (type.includes('markdown') || type === 'text/markdown') return FileText
     return File
   }
 
@@ -628,7 +638,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                   type="file"
                   multiple
                   className="hidden"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.bmp,.webp"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.bmp,.webp,.md,.markdown"
                   onChange={(e) => {
                     handleFileUpload(e.target.files, false)
                     if (e.target) e.target.value = ''
@@ -801,7 +811,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                                 type="file"
                                 multiple
                                 className="hidden"
-                                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.bmp,.webp"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.bmp,.webp,.md,.markdown"
                                 onChange={(e) => {
                                   handleFileUpload(e.target.files, true)
                                   if (e.target) e.target.value = ''
