@@ -1,3 +1,19 @@
+export interface TaskDocument {
+    id: string
+    name: string
+    type: string // MIME type
+    size: number // file size in bytes
+    data: string // base64 data URL or blob URL
+    uploadedAt: Date
+}
+
+export interface TaskLink {
+    id: string
+    url: string
+    title?: string
+    addedAt: Date
+}
+
 export interface Task {
     id: string
     title: string
@@ -6,6 +22,8 @@ export interface Task {
     createdAt: Date
     completedAt?: Date
     description?: string
+    documents?: TaskDocument[]
+    links?: TaskLink[]
 }
 
 export interface Event {
@@ -48,6 +66,20 @@ export interface ImportTaskData {
     createdAt?: string | Date
     completedAt?: string | Date
     description?: string
+    documents?: Array<{
+        id?: string
+        name?: string
+        type?: string
+        size?: number
+        data?: string
+        uploadedAt?: string | Date
+    }>
+    links?: Array<{
+        id?: string
+        url?: string
+        title?: string
+        addedAt?: string | Date
+    }>
 }
 
 export interface ImportEventData {

@@ -6,7 +6,8 @@ import { useTimetable } from '../context/TimetableContext'
 import { useToast } from './ui/toast'
 import type { ImportEventData } from '../types'
 import { parseTimeString } from '../utils/timeUtils'
-import type { Task } from '../types'
+import type { Task, TaskDocument, TaskLink } from '../types'
+import { v4 as uuidv4 } from 'uuid'
 
 const DEFAULT_TIMES = [
   '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
@@ -146,6 +147,34 @@ export const ExportImport: React.FC = () => {
               let tasks: Task[] | undefined
               if (eventData.tasks && Array.isArray(eventData.tasks)) {
                 tasks = eventData.tasks.map((taskData, taskIndex) => {
+                  // Process documents if they exist
+                  let documents: TaskDocument[] | undefined
+                  if (taskData.documents && Array.isArray(taskData.documents)) {
+                    documents = taskData.documents.map((docData) => ({
+                      id: docData.id || uuidv4(),
+                      name: docData.name || 'Untitled Document',
+                      type: docData.type || 'application/octet-stream',
+                      size: docData.size || 0,
+                      data: docData.data || '',
+                      uploadedAt: docData.uploadedAt
+                        ? (typeof docData.uploadedAt === 'string' ? new Date(docData.uploadedAt) : docData.uploadedAt)
+                        : new Date()
+                    }))
+                  }
+
+                  // Process links if they exist
+                  let links: TaskLink[] | undefined
+                  if (taskData.links && Array.isArray(taskData.links)) {
+                    links = taskData.links.map((linkData) => ({
+                      id: linkData.id || uuidv4(),
+                      url: linkData.url || '',
+                      title: linkData.title,
+                      addedAt: linkData.addedAt
+                        ? (typeof linkData.addedAt === 'string' ? new Date(linkData.addedAt) : linkData.addedAt)
+                        : new Date()
+                    }))
+                  }
+                  
                   const task: Task = {
                     id: taskData.id || `imported-${index}-${taskIndex}`,
                     title: taskData.title || 'Untitled Task',
@@ -157,7 +186,9 @@ export const ExportImport: React.FC = () => {
                     completedAt: taskData.completedAt
                       ? (typeof taskData.completedAt === 'string' ? new Date(taskData.completedAt) : taskData.completedAt)
                       : undefined,
-                    description: taskData.description
+                    description: taskData.description,
+                    documents: documents,
+                    links: links
                   }
                   return task
                 })

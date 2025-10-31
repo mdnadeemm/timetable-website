@@ -98,7 +98,19 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
                 createdAt: typeof task.createdAt === 'string' ? new Date(task.createdAt) : task.createdAt,
                 completedAt: task.completedAt && typeof task.completedAt === 'string' 
                   ? new Date(task.completedAt) 
-                  : task.completedAt
+                  : task.completedAt,
+                documents: task.documents && Array.isArray(task.documents)
+                  ? task.documents.map((doc: any) => ({
+                      ...doc,
+                      uploadedAt: typeof doc.uploadedAt === 'string' ? new Date(doc.uploadedAt) : doc.uploadedAt
+                    }))
+                  : task.documents,
+                links: task.links && Array.isArray(task.links)
+                  ? task.links.map((link: any) => ({
+                      ...link,
+                      addedAt: typeof link.addedAt === 'string' ? new Date(link.addedAt) : link.addedAt
+                    }))
+                  : task.links
               }))
             }
           }

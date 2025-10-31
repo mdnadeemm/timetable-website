@@ -3,15 +3,42 @@ import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
 import { TimetableGrid } from './components/TimetableGrid'
 import { AddEventDialog } from './components/AddEventDialog'
+import { DocumentViewer } from './components/DocumentViewer'
 import { Button } from './components/ui/button'
 import { Plus } from 'lucide-react'
 import { TimetableProvider } from './context/TimetableContext'
 import { SettingsProvider } from './context/SettingsContext'
 import { ToastProvider } from './components/ui/toast'
+import type { TaskDocument, TaskLink } from './types'
 import './App.css'
 
 function App() {
   const [isAddEventOpen, setIsAddEventOpen] = useState(false)
+  const [viewingDocument, setViewingDocument] = useState<TaskDocument | null>(null)
+  const [viewingAllDocuments, setViewingAllDocuments] = useState<TaskDocument[]>([])
+  const [viewingLink, setViewingLink] = useState<TaskLink | null>(null)
+  const [viewingAllLinks, setViewingAllLinks] = useState<TaskLink[]>([])
+
+  const handleViewDocument = (document: TaskDocument, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => {
+    setViewingDocument(document)
+    setViewingAllDocuments(allDocuments || [])
+    setViewingLink(null)
+    setViewingAllLinks(allLinks || [])
+  }
+
+  const handleViewLink = (link: TaskLink, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => {
+    setViewingLink(link)
+    setViewingAllLinks(allLinks || [])
+    setViewingDocument(null)
+    setViewingAllDocuments(allDocuments || [])
+  }
+
+  const handleCloseDocument = () => {
+    setViewingDocument(null)
+    setViewingAllDocuments([])
+    setViewingLink(null)
+    setViewingAllLinks([])
+  }
 
   return (
     <ToastProvider>
@@ -32,7 +59,7 @@ function App() {
                   </Button>
                 </div>
                 
-                <TimetableGrid />
+                <TimetableGrid onViewDocument={handleViewDocument} onViewLink={handleViewLink} />
               </main>
             </div>
 
@@ -40,6 +67,17 @@ function App() {
               open={isAddEventOpen} 
               onOpenChange={setIsAddEventOpen}
             />
+
+            {/* Document Viewer - Overlay on top */}
+            {(viewingDocument || viewingLink) && (
+              <DocumentViewer 
+                document={viewingDocument}
+                link={viewingLink}
+                allDocuments={viewingAllDocuments.length > 0 ? viewingAllDocuments : undefined}
+                allLinks={viewingAllLinks.length > 0 ? viewingAllLinks : undefined}
+                onClose={handleCloseDocument} 
+              />
+            )}
           </div>
         </TimetableProvider>
       </SettingsProvider>

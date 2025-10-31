@@ -5,14 +5,18 @@ import { useTimetable } from '../context/TimetableContext'
 import { useToast } from './ui/toast'
 import { TimePicker } from './TimePicker'
 import { parseTimeString } from '../utils/timeUtils'
-import { CheckSquare, Edit3, X, Plus, Trash2, Edit, ChevronDown, ChevronUp, GripVertical, ListTodo, Check, ClipboardList, CheckCircle2 } from 'lucide-react'
+import { CheckSquare, Edit3, X, Plus, Trash2, Edit, ChevronDown, ChevronUp, GripVertical, ListTodo, Check, ClipboardList, CheckCircle2, Paperclip, FileText, Image as ImageIcon, FileSpreadsheet, File, Link as LinkIcon } from 'lucide-react'
 import { Checkbox } from './ui/checkbox'
+import type { TaskDocument, TaskLink } from '../types'
+import { v4 as uuidv4 } from 'uuid'
 
 interface TaskPanelProps {
   open: boolean
   onClose: () => void
   eventId: string | null
   initialTab?: TabType
+  onViewDocument?: (document: TaskDocument, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => void
+  onViewLink?: (link: TaskLink, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => void
 }
 
 type TabType = 'tasks' | 'edit'
@@ -53,7 +57,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   open, 
   onClose, 
   eventId,
-  initialTab = 'tasks'
+  initialTab = 'tasks',
+  onViewDocument,
+  onViewLink
 }) => {
   const { events, addTask, updateTask, deleteTask, toggleTask, updateEvent, deleteEvent, reorderTasks } = useTimetable()
   const { addToast } = useToast()
@@ -68,6 +74,16 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
   const dragCounter = useRef(0)
+  const newTaskFilesRef = useRef<HTMLInputElement | null>(null)
+  const editingTaskFilesRef = useRef<HTMLInputElement | null>(null)
+  const [newTaskFiles, setNewTaskFiles] = useState<TaskDocument[]>([])
+  const [editingTaskFiles, setEditingTaskFiles] = useState<TaskDocument[]>([])
+  const [newTaskLinks, setNewTaskLinks] = useState<TaskLink[]>([])
+  const [editingTaskLinks, setEditingTaskLinks] = useState<TaskLink[]>([])
+  const [newLinkUrl, setNewLinkUrl] = useState('')
+  const [newLinkTitle, setNewLinkTitle] = useState('')
+  const [editingLinkUrl, setEditingLinkUrl] = useState('')
+  const [editingLinkTitle, setEditingLinkTitle] = useState('')
 
   const [eventFormData, setEventFormData] = useState<EventFormData>({
     title: '',
@@ -132,11 +148,17 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       title: newTaskTitle.trim(),
       description: newTaskDescription.trim() || undefined,
       completed: false,
-      createdAt: new Date()
+      createdAt: new Date(),
+      documents: newTaskFiles.length > 0 ? newTaskFiles : undefined,
+      links: newTaskLinks.length > 0 ? newTaskLinks : undefined
     })
 
     setNewTaskTitle('')
     setNewTaskDescription('')
+    setNewTaskFiles([])
+    setNewTaskLinks([])
+    setNewLinkUrl('')
+    setNewLinkTitle('')
     addToast({
       title: 'Task Added',
       description: 'New task has been added to this event.',
@@ -163,6 +185,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setEditingTaskId(task.id)
     setEditingTitle(task.title)
     setEditingDescription(task.description || '')
+    setEditingTaskFiles(task.documents || [])
+    setEditingTaskLinks(task.links || [])
   }
 
   const handleEditSave = () => {
@@ -170,12 +194,18 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
     updateTask(eventId, editingTaskId, {
       title: editingTitle.trim(),
-      description: editingDescription.trim() || undefined
+      description: editingDescription.trim() || undefined,
+      documents: editingTaskFiles.length > 0 ? editingTaskFiles : undefined,
+      links: editingTaskLinks.length > 0 ? editingTaskLinks : undefined
     })
 
     setEditingTaskId(null)
     setEditingTitle('')
     setEditingDescription('')
+    setEditingTaskFiles([])
+    setEditingTaskLinks([])
+    setEditingLinkUrl('')
+    setEditingLinkTitle('')
     addToast({
       title: 'Task Updated',
       description: 'Task has been updated successfully.',
@@ -187,6 +217,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setEditingTaskId(null)
     setEditingTitle('')
     setEditingDescription('')
+    setEditingTaskFiles([])
+    setEditingTaskLinks([])
+    setEditingLinkUrl('')
+    setEditingLinkTitle('')
   }
 
   const toggleTaskExpansion = (taskId: string) => {
@@ -348,6 +382,173 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     dragCounter.current = 0
   }
 
+  // File upload handlers for creating/editing tasks
+  const handleFileUpload = async (files: FileList | null, isEditing: boolean) => {
+    if (!files || files.length === 0) return
+
+    const maxSize = 10 * 1024 * 1024 // 10MB limit
+
+    const processFile = (file: File): Promise<TaskDocument> => {
+      return new Promise((resolve, reject) => {
+        if (file.size > maxSize) {
+          reject(new Error(`File ${file.name} is too large (max 10MB)`))
+          return
+        }
+
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string
+          resolve({
+            id: uuidv4(),
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: dataUrl,
+            uploadedAt: new Date()
+          })
+        }
+        reader.onerror = () => reject(new Error(`Failed to read ${file.name}`))
+        reader.readAsDataURL(file)
+      })
+    }
+
+    try {
+      const filePromises = Array.from(files).map(file => processFile(file))
+      const newDocuments = await Promise.all(filePromises)
+
+      if (isEditing) {
+        setEditingTaskFiles(prev => [...prev, ...newDocuments])
+      } else {
+        setNewTaskFiles(prev => [...prev, ...newDocuments])
+      }
+
+      addToast({
+        title: 'Files Added',
+        description: `${files.length} file(s) added successfully.`,
+        variant: 'success'
+      })
+    } catch (error: any) {
+      addToast({
+        title: 'Upload Failed',
+        description: error.message || 'An error occurred while uploading the file.',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleRemoveFile = (fileId: string, isEditing: boolean) => {
+    if (isEditing) {
+      setEditingTaskFiles(prev => prev.filter(f => f.id !== fileId))
+    } else {
+      setNewTaskFiles(prev => prev.filter(f => f.id !== fileId))
+    }
+  }
+
+  const handleAddLink = (isEditing: boolean) => {
+    const url = isEditing ? editingLinkUrl.trim() : newLinkUrl.trim()
+    if (!url) return
+
+    // Validate URL format
+    try {
+      new URL(url.startsWith('http') ? url : `https://${url}`)
+    } catch {
+      addToast({
+        title: 'Invalid URL',
+        description: 'Please enter a valid URL.',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
+    const newLink: TaskLink = {
+      id: uuidv4(),
+      url: normalizedUrl,
+      title: (isEditing ? editingLinkTitle : newLinkTitle).trim() || undefined,
+      addedAt: new Date()
+    }
+
+    if (isEditing) {
+      setEditingTaskLinks(prev => [...prev, newLink])
+      setEditingLinkUrl('')
+      setEditingLinkTitle('')
+    } else {
+      setNewTaskLinks(prev => [...prev, newLink])
+      setNewLinkUrl('')
+      setNewLinkTitle('')
+    }
+  }
+
+  const handleRemoveLink = (linkId: string, isEditing: boolean) => {
+    if (isEditing) {
+      setEditingTaskLinks(prev => prev.filter(l => l.id !== linkId))
+    } else {
+      setNewTaskLinks(prev => prev.filter(l => l.id !== linkId))
+    }
+  }
+
+  const handleLinkClick = (link: TaskLink) => {
+    if (onViewLink) {
+      // Find the task that contains this link
+      const task = tasks.find(t => t.links?.some(l => l.id === link.id))
+      if (task) {
+        // Pass all documents and links from the same task
+        onViewLink(link, task.documents, task.links)
+      } else {
+        // Fallback to single link
+        onViewLink(link)
+      }
+    } else {
+      // Fallback: open in new tab
+      window.open(link.url, '_blank')
+    }
+  }
+
+  const handleDeleteDocument = (taskId: string, documentId: string) => {
+    if (!eventId) return
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !task.documents) return
+
+    const updatedDocuments = task.documents.filter(doc => doc.id !== documentId)
+    updateTask(eventId, taskId, {
+      documents: updatedDocuments.length > 0 ? updatedDocuments : undefined
+    })
+
+    addToast({
+      title: 'Document Removed',
+      description: 'Document has been removed from the task.',
+      variant: 'success'
+    })
+  }
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return ImageIcon
+    if (type.includes('pdf')) return FileText
+    if (type.includes('excel') || type.includes('spreadsheet') || type.includes('csv')) return FileSpreadsheet
+    if (type.includes('word') || type.includes('document')) return FileText
+    return File
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+  }
+
+  const handleDocumentClick = (document: TaskDocument) => {
+    if (onViewDocument) {
+      // Find the task that contains this document
+      const task = tasks.find(t => t.documents?.some(d => d.id === document.id))
+      if (task) {
+        // Pass all documents and links from the same task
+        onViewDocument(document, task.documents, task.links)
+      } else {
+        // Fallback to single document
+        onViewDocument(document, [document])
+      }
+    }
+  }
+
   return (
     <div className="fixed right-0 top-0 h-full w-96 bg-white border-l border-gray-300 shadow-lg z-[100] flex flex-col">
       {/* Header */}
@@ -419,6 +620,127 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 rows={2}
               />
+              
+              {/* File attachments for new task */}
+              <div className="space-y-2">
+                <input
+                  ref={newTaskFilesRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.bmp,.webp"
+                  onChange={(e) => {
+                    handleFileUpload(e.target.files, false)
+                    if (e.target) e.target.value = ''
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => newTaskFilesRef.current?.click()}
+                  className="w-full text-xs"
+                >
+                  <Paperclip className="h-3 w-3 mr-1" />
+                  Attach Files
+                </Button>
+                
+                {/* Display attached files */}
+                {newTaskFiles.length > 0 && (
+                  <div className="space-y-1">
+                    {newTaskFiles.map((file) => {
+                      const FileIcon = getFileIcon(file.type)
+                      return (
+                        <div
+                          key={file.id}
+                          className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs"
+                        >
+                          <FileIcon className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-700 truncate">{file.name}</p>
+                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveFile(file.id, false)}
+                            className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Link attachments for new task */}
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter URL..."
+                    value={newLinkUrl}
+                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddLink(false)
+                      }
+                    }}
+                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleAddLink(false)}
+                    className="text-xs"
+                    disabled={!newLinkUrl.trim()}
+                  >
+                    <LinkIcon className="h-3 w-3 mr-1" />
+                    Add Link
+                  </Button>
+                </div>
+                {newLinkUrl && (
+                  <input
+                    type="text"
+                    placeholder="Link title (optional)..."
+                    value={newLinkTitle}
+                    onChange={(e) => setNewLinkTitle(e.target.value)}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                )}
+                {/* Display added links */}
+                {newTaskLinks.length > 0 && (
+                  <div className="space-y-1">
+                    {newTaskLinks.map((link) => (
+                      <div
+                        key={link.id}
+                        className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs"
+                      >
+                        <LinkIcon className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-700 truncate">{link.title || link.url}</p>
+                          <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveLink(link.id, false)}
+                          className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
               <Button type="submit" size="sm" disabled={!newTaskTitle.trim()} className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Task
@@ -471,6 +793,127 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                               placeholder="Task description (optional)"
                               rows={2}
                             />
+                            
+                            {/* File attachments for editing task */}
+                            <div className="space-y-2">
+                              <input
+                                ref={editingTaskFilesRef}
+                                type="file"
+                                multiple
+                                className="hidden"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.bmp,.webp"
+                                onChange={(e) => {
+                                  handleFileUpload(e.target.files, true)
+                                  if (e.target) e.target.value = ''
+                                }}
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => editingTaskFilesRef.current?.click()}
+                                className="w-full text-xs"
+                              >
+                                <Paperclip className="h-3 w-3 mr-1" />
+                                Attach Files
+                              </Button>
+                              
+                              {/* Display attached files */}
+                              {editingTaskFiles.length > 0 && (
+                                <div className="space-y-1">
+                                  {editingTaskFiles.map((file) => {
+                                    const FileIcon = getFileIcon(file.type)
+                                    return (
+                                      <div
+                                        key={file.id}
+                                        className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs"
+                                      >
+                                        <FileIcon className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium text-gray-700 truncate">{file.name}</p>
+                                          <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => handleRemoveFile(file.id, true)}
+                                          className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Link attachments for editing task */}
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Enter URL..."
+                                  value={editingLinkUrl}
+                                  onChange={(e) => setEditingLinkUrl(e.target.value)}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      handleAddLink(true)
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleAddLink(true)}
+                                  className="text-xs"
+                                  disabled={!editingLinkUrl.trim()}
+                                >
+                                  <LinkIcon className="h-3 w-3 mr-1" />
+                                  Add Link
+                                </Button>
+                              </div>
+                              {editingLinkUrl && (
+                                <input
+                                  type="text"
+                                  placeholder="Link title (optional)..."
+                                  value={editingLinkTitle}
+                                  onChange={(e) => setEditingLinkTitle(e.target.value)}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              )}
+                              {/* Display added links */}
+                              {editingTaskLinks.length > 0 && (
+                                <div className="space-y-1">
+                                  {editingTaskLinks.map((link) => (
+                                    <div
+                                      key={link.id}
+                                      className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs"
+                                    >
+                                      <LinkIcon className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-gray-700 truncate">{link.title || link.url}</p>
+                                        <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleRemoveLink(link.id, true)}
+                                        className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            
                             <div className="flex gap-2">
                               <Button size="sm" variant="ghost" onClick={handleEditSave} className="flex-1 flex items-center justify-center gap-1">
                                 <Check className="h-3 w-3" />
@@ -553,6 +996,101 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                             {task.description && isExpanded && (
                               <div className="mt-2 pt-2 border-t border-gray-200">
                                 <p className="text-xs text-gray-600 whitespace-pre-wrap">{task.description}</p>
+                                
+                                {/* Documents section - display only, no upload */}
+                                {task.documents && task.documents.length > 0 && (
+                                  <div className="mt-3 space-y-1">
+                                    {task.documents.map((doc) => {
+                                      const FileIcon = getFileIcon(doc.type)
+                                      return (
+                                        <div
+                                          key={doc.id}
+                                          className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleDocumentClick(doc)
+                                          }}
+                                        >
+                                          <FileIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-gray-700 truncate">{doc.name}</p>
+                                            <p className="text-xs text-gray-500">{formatFileSize(doc.size)}</p>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                                {/* Links section */}
+                                {task.links && task.links.length > 0 && (
+                                  <div className="mt-3 space-y-1">
+                                    {task.links.map((link) => (
+                                      <div
+                                        key={link.id}
+                                        className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleLinkClick(link)
+                                        }}
+                                      >
+                                        <LinkIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium text-gray-700 truncate">{link.title || link.url}</p>
+                                          <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {!task.description && task.documents && task.documents.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                {/* Documents section even without description */}
+                                <div className="space-y-1">
+                                  {task.documents.map((doc) => {
+                                    const FileIcon = getFileIcon(doc.type)
+                                    return (
+                                      <div
+                                        key={doc.id}
+                                        className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleDocumentClick(doc)
+                                        }}
+                                      >
+                                        <FileIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium text-gray-700 truncate">{doc.name}</p>
+                                          <p className="text-xs text-gray-500">{formatFileSize(doc.size)}</p>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {!task.description && !task.documents && task.links && task.links.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                {/* Links section even without description */}
+                                <div className="space-y-1">
+                                  {task.links.map((link) => (
+                                    <div
+                                      key={link.id}
+                                      className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleLinkClick(link)
+                                      }}
+                                    >
+                                      <LinkIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-gray-700 truncate">{link.title || link.url}</p>
+                                        <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </>
@@ -690,6 +1228,101 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                             {task.description && isExpanded && (
                               <div className="mt-2 pt-2 border-t border-gray-200">
                                 <p className="text-xs text-gray-600 whitespace-pre-wrap">{task.description}</p>
+                                
+                                {/* Documents section - display only, no upload */}
+                                {task.documents && task.documents.length > 0 && (
+                                  <div className="mt-3 space-y-1">
+                                    {task.documents.map((doc) => {
+                                      const FileIcon = getFileIcon(doc.type)
+                                      return (
+                                        <div
+                                          key={doc.id}
+                                          className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleDocumentClick(doc)
+                                          }}
+                                        >
+                                          <FileIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-gray-700 truncate">{doc.name}</p>
+                                            <p className="text-xs text-gray-500">{formatFileSize(doc.size)}</p>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                                {/* Links section */}
+                                {task.links && task.links.length > 0 && (
+                                  <div className="mt-3 space-y-1">
+                                    {task.links.map((link) => (
+                                      <div
+                                        key={link.id}
+                                        className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleLinkClick(link)
+                                        }}
+                                      >
+                                        <LinkIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium text-gray-700 truncate">{link.title || link.url}</p>
+                                          <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {!task.description && task.documents && task.documents.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                {/* Documents section even without description */}
+                                <div className="space-y-1">
+                                  {task.documents.map((doc) => {
+                                    const FileIcon = getFileIcon(doc.type)
+                                    return (
+                                      <div
+                                        key={doc.id}
+                                        className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleDocumentClick(doc)
+                                        }}
+                                      >
+                                        <FileIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium text-gray-700 truncate">{doc.name}</p>
+                                          <p className="text-xs text-gray-500">{formatFileSize(doc.size)}</p>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {!task.description && !task.documents && task.links && task.links.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                {/* Links section even without description */}
+                                <div className="space-y-1">
+                                  {task.links.map((link) => (
+                                    <div
+                                      key={link.id}
+                                      className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer group"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleLinkClick(link)
+                                      }}
+                                    >
+                                      <LinkIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-gray-700 truncate">{link.title || link.url}</p>
+                                        <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </>

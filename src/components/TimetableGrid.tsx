@@ -5,11 +5,15 @@ import { useSettings } from '../context/SettingsContext'
 import { TaskPanel } from './TaskPanel'
 import { useToast } from './ui/toast'
 import { CheckSquare, GripVertical } from 'lucide-react'
+import type { TaskDocument, TaskLink } from '../types'
 import { parseTimeString, generateZoomedTimeSlots, formatTimeWithZoom } from '../utils/timeUtils'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export const TimetableGrid: React.FC = () => {
+export const TimetableGrid: React.FC<{ 
+  onViewDocument?: (document: TaskDocument, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => void
+  onViewLink?: (link: TaskLink, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => void
+}> = ({ onViewDocument, onViewLink }) => {
   const { events, updateEvent } = useTimetable()
   const { settings } = useSettings()
   const { addToast } = useToast()
@@ -737,6 +741,8 @@ ${event.description ? `Description: ${event.description}` : ''}`
         onClose={handlePanelClose}
         eventId={selectedEventId}
         initialTab={initialTab}
+        onViewDocument={onViewDocument}
+        onViewLink={onViewLink}
       />
     </Card>
   )
