@@ -83,12 +83,26 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (savedEvents) {
       try {
         const parsed = JSON.parse(savedEvents)
-        // Migrate old events if needed
+        // Migrate old events if needed and convert task dates
         const migratedEvents = parsed.map((event: any) => {
+          let migratedEvent = event
           if (typeof event.startTime === 'number' || typeof event.endTime === 'number') {
-            return migrateEventToTimeStrings(event, DEFAULT_TIMES)
+            migratedEvent = migrateEventToTimeStrings(event, DEFAULT_TIMES)
           }
-          return event
+          // Convert task date strings to Date objects if needed
+          if (migratedEvent.tasks && Array.isArray(migratedEvent.tasks)) {
+            migratedEvent = {
+              ...migratedEvent,
+              tasks: migratedEvent.tasks.map((task: any) => ({
+                ...task,
+                createdAt: typeof task.createdAt === 'string' ? new Date(task.createdAt) : task.createdAt,
+                completedAt: task.completedAt && typeof task.completedAt === 'string' 
+                  ? new Date(task.completedAt) 
+                  : task.completedAt
+              }))
+            }
+          }
+          return migratedEvent
         })
         setEvents(migratedEvents)
         // Save migrated events back if migration occurred

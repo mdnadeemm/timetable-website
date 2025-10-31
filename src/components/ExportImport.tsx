@@ -6,6 +6,7 @@ import { useTimetable } from '../context/TimetableContext'
 import { useToast } from './ui/toast'
 import type { ImportEventData } from '../types'
 import { parseTimeString } from '../utils/timeUtils'
+import type { Task } from '../types'
 
 const DEFAULT_TIMES = [
   '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
@@ -20,6 +21,10 @@ export const ExportImport: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const exportToJSON = () => {
+    // Count total tasks across all events
+    const totalTasks = events.reduce((sum, event) => sum + (event.tasks?.length || 0), 0)
+    
+    // Serialize events with tasks - Date objects will be serialized as ISO strings by JSON.stringify
     const dataStr = JSON.stringify(events, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(dataBlob)
@@ -31,13 +36,14 @@ export const ExportImport: React.FC = () => {
     
     addToast({
       title: 'Export Successful',
-      description: `Exported ${events.length} events to JSON file.`,
+      description: `Exported ${events.length} events${totalTasks > 0 ? ` with ${totalTasks} tasks` : ''} to JSON file.`,
       variant: 'success'
     })
   }
 
   const exportToText = () => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const totalTasks = events.reduce((sum, event) => sum + (event.tasks?.length || 0), 0)
 
     let content = 'TIMETABLE EXPORT\n'
     content += `Generated on: ${new Date().toLocaleDateString()}\n`
@@ -59,6 +65,17 @@ export const ExportImport: React.FC = () => {
           if (event.teacher) content += `  Teacher: ${event.teacher}\n`
           if (event.location) content += `  Location: ${event.location}\n`
           if (event.description) content += `  Description: ${event.description}\n`
+          
+          // Include tasks if they exist
+          if (event.tasks && event.tasks.length > 0) {
+            content += `  Tasks:\n`
+            event.tasks.forEach((task, index) => {
+              const status = task.completed ? '[✓]' : '[ ]'
+              content += `    ${status} ${task.title}\n`
+              if (task.description) content += `      ${task.description}\n`
+            })
+          }
+          
           content += '\n'
         })
         content += '\n'
@@ -75,7 +92,7 @@ export const ExportImport: React.FC = () => {
     
     addToast({
       title: 'Export Successful',
-      description: `Exported ${events.length} events to text file.`,
+      description: `Exported ${events.length} events${totalTasks > 0 ? ` with ${totalTasks} tasks` : ''} to text file.`,
       variant: 'success'
     })
   }
@@ -94,6 +111,7 @@ export const ExportImport: React.FC = () => {
         if (Array.isArray(importedEvents)) {
           let importedCount = 0
           let failedCount = 0
+          let totalTasksImported = 0
           
           importedEvents.forEach((eventData: ImportEventData, index: number) => {
             try {
@@ -124,6 +142,28 @@ export const ExportImport: React.FC = () => {
                 endTime = '9:00 AM'
               }
               
+              // Process tasks if they exist - convert Date strings back to Date objects
+              let tasks: Task[] | undefined
+              if (eventData.tasks && Array.isArray(eventData.tasks)) {
+                tasks = eventData.tasks.map((taskData, taskIndex) => {
+                  const task: Task = {
+                    id: taskData.id || `imported-${index}-${taskIndex}`,
+                    title: taskData.title || 'Untitled Task',
+                    completed: taskData.completed || false,
+                    order: taskData.order !== undefined ? taskData.order : taskIndex,
+                    createdAt: taskData.createdAt 
+                      ? (typeof taskData.createdAt === 'string' ? new Date(taskData.createdAt) : taskData.createdAt)
+                      : new Date(),
+                    completedAt: taskData.completedAt
+                      ? (typeof taskData.completedAt === 'string' ? new Date(taskData.completedAt) : taskData.completedAt)
+                      : undefined,
+                    description: taskData.description
+                  }
+                  return task
+                })
+                totalTasksImported += tasks.length
+              }
+              
               const newEvent = {
                 title: eventData.title,
                 day: parseInt(eventData.day?.toString() || '') || 1,
@@ -132,7 +172,8 @@ export const ExportImport: React.FC = () => {
                 teacher: eventData.teacher || '',
                 location: eventData.location || '',
                 color: eventData.color || 'bg-blue-500',
-                description: eventData.description || ''
+                description: eventData.description || '',
+                tasks: tasks
               }
               
               // Validate time range
@@ -153,10 +194,11 @@ export const ExportImport: React.FC = () => {
           })
           
           if (importedCount > 0) {
-            setImportStatus(`Successfully imported ${importedCount} events${failedCount > 0 ? ` (${failedCount} failed)` : ''}`)
+            const taskMessage = totalTasksImported > 0 ? ` with ${totalTasksImported} tasks` : ''
+            setImportStatus(`Successfully imported ${importedCount} events${taskMessage}${failedCount > 0 ? ` (${failedCount} failed)` : ''}`)
             addToast({
               title: 'Import Successful',
-              description: `Imported ${importedCount} events from file.`,
+              description: `Imported ${importedCount} events${taskMessage} from file.`,
               variant: 'success'
             })
           } else {
@@ -224,7 +266,7 @@ export const ExportImport: React.FC = () => {
           <span className="truncate">Import Timetable</span>
         </h3>
         <p className="text-xs text-muted-foreground mb-3 break-words">
-          Upload a JSON file to import events. This will add to your existing timetable.
+          Upload a JSON file to import events and their tasks. This will add to your existing timetable.
         </p>
         <div className="space-y-3 min-w-0">
           <div className="min-w-0">
@@ -260,8 +302,15 @@ export const ExportImport: React.FC = () => {
 {`[{
   "title": "Event",
   "day": 1,
-  "startTime": 0,
-  "endTime": 1
+  "startTime": "8:00 AM",
+  "endTime": "9:00 AM",
+  "tasks": [
+    {
+      "title": "Task 1",
+      "completed": false,
+      "order": 0
+    }
+  ]
 }]`}
             </pre>
           </div>

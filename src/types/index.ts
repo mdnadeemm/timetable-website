@@ -40,6 +40,16 @@ export interface TimetableContextType {
 }
 
 // Interface for import data validation
+export interface ImportTaskData {
+    id?: string
+    title?: string
+    completed?: boolean
+    order?: number
+    createdAt?: string | Date
+    completedAt?: string | Date
+    description?: string
+}
+
 export interface ImportEventData {
     title?: string
     day?: number | string
@@ -49,4 +59,5 @@ export interface ImportEventData {
     location?: string
     color?: string
     description?: string
+    tasks?: ImportTaskData[]
 }
