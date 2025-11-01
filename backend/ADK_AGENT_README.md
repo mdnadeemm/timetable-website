@@ -11,6 +11,178 @@ The ADK agent extends the basic timetable functionality with:
 - **Progress tracking and analysis**
 - **Resource recommendations**
 
+## Application Architecture
+
+### Full Application Diagram
+
+```mermaid
+graph TB
+    subgraph "User Interface"
+        A[Web Browser<br/>http://localhost:5173]
+        B[React Frontend<br/>React + TypeScript + Vite]
+    end
+    
+    subgraph "Frontend Components"
+        C[Header Component]
+        D[Sidebar Component]
+        E[TimetableGrid Component]
+        F[LearningPlanDialog]
+        G[AddEventDialog]
+        H[TaskPanel]
+        I[DocumentViewer]
+    end
+    
+    subgraph "Frontend Services"
+        J[learningAgent.ts<br/>API Client]
+        K[TimetableContext<br/>State Management]
+        L[SettingsContext<br/>User Preferences]
+    end
+    
+    subgraph "Backend API Layer"
+        M[FastAPI Server<br/>Port 8000]
+        N[API Endpoints<br/>/api/agent/*]
+    end
+    
+    subgraph "ADK Agent System"
+        O[ADK Agent<br/>timetable_agent]
+        P[Learning Plan Agent<br/>backend/agents/learning_plan_agent]
+        Q[Agent Tools]
+    end
+    
+    subgraph "External Services"
+        R[Google Gemini API<br/>gemini-2.0-flash-exp]
+        S[Cloud Run<br/>Optional Deployment]
+    end
+    
+    subgraph "Data Storage"
+        T[Local Storage<br/>Browser Storage]
+        U[Session Storage<br/>Conversation History]
+    end
+    
+    A --> B
+    B --> C
+    B --> D
+    B --> E
+    B --> F
+    B --> G
+    B --> H
+    B --> I
+    
+    F --> J
+    G --> K
+    E --> K
+    B --> L
+    
+    J --> M
+    M --> N
+    N --> O
+    N --> P
+    
+    O --> Q
+    P --> Q
+    Q --> R
+    
+    P -.->|Deploy| S
+    
+    K --> T
+    O --> U
+    
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style M fill:#fff4e1
+    style O fill:#ffe1f5
+    style P fill:#ffe1f5
+    style R fill:#e1ffe1
+    style S fill:#f0e1ff
+```
+
+### Application Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant API_Client
+    participant FastAPI
+    participant ADK_Agent
+    participant Gemini_API
+    participant Storage
+    
+    User->>Frontend: Open Learning Plan Dialog
+    Frontend->>API_Client: Check Backend Health
+    API_Client->>FastAPI: GET /api/agent/status
+    FastAPI-->>API_Client: Agent Available
+    
+    User->>Frontend: Submit Learning Plan Request
+    Frontend->>API_Client: Generate Learning Plan
+    API_Client->>FastAPI: POST /api/agent/chat
+    FastAPI->>ADK_Agent: Process Request
+    
+    ADK_Agent->>Gemini_API: Generate Plan with Tools
+    Gemini_API-->>ADK_Agent: Structured Learning Plan
+    
+    ADK_Agent-->>FastAPI: JSON Response
+    FastAPI-->>API_Client: Learning Plan Data
+    API_Client-->>Frontend: Update UI
+    
+    Frontend->>Storage: Save Events to Context
+    Frontend->>Storage: Persist to LocalStorage
+    Frontend-->>User: Display Timetable with Events
+```
+
+### Component Interaction Diagram
+
+```mermaid
+graph LR
+    subgraph "Frontend Layer"
+        A[App.tsx<br/>Root Component]
+        B[Header]
+        C[Sidebar]
+        D[TimetableGrid]
+        E[LearningPlanDialog]
+        F[AddEventDialog]
+        G[TaskPanel]
+    end
+    
+    subgraph "Context Layer"
+        H[TimetableContext<br/>Events & Tasks]
+        I[SettingsContext<br/>User Settings]
+    end
+    
+    subgraph "Service Layer"
+        J[learningAgent.ts<br/>Backend Communication]
+    end
+    
+    subgraph "Backend Layer"
+        K[FastAPI<br/>REST API]
+        L[ADK Agent<br/>AI Processing]
+    end
+    
+    A --> B
+    A --> C
+    A --> D
+    A --> E
+    A --> F
+    
+    D --> G
+    E --> J
+    F --> H
+    
+    A --> H
+    A --> I
+    
+    J --> K
+    K --> L
+    
+    H -.->|State Updates| D
+    H -.->|State Updates| G
+    
+    style A fill:#e1f5ff
+    style H fill:#fff4e1
+    style J fill:#ffe1f5
+    style L fill:#e1ffe1
+```
+
 ## Installation
 
 ### Install Google ADK
@@ -40,14 +212,97 @@ Get your API key from: https://aistudio.google.com/app/apikey
 
 ## Architecture
 
+### System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        A[Frontend Application<br/>React/TypeScript]
+        B[HTTP Client<br/>REST API]
+    end
+    
+    subgraph "API Layer"
+        C[FastAPI Server<br/>main.py]
+        D[API Endpoints<br/>/api/agent/*]
+    end
+    
+    subgraph "Agent Layer"
+        E[ADK Agent<br/>timetable_agent]
+        F[Agent Tools]
+        G[Google Gemini API<br/>gemini-2.0-flash-exp]
+    end
+    
+    subgraph "Tools"
+        H[generate_learning_plan]
+        I[suggest_study_schedule]
+        J[analyze_learning_progress]
+        K[get_learning_resources]
+    end
+    
+    subgraph "Deployment Options"
+        L[Local Development<br/>uvicorn main:app]
+        M[ADK API Server<br/>adk api_server]
+        N[Cloud Run<br/>adk deploy cloud_run]
+    end
+    
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    E --> G
+    F --> H
+    F --> I
+    F --> J
+    F --> K
+    
+    C -.-> L
+    E -.-> M
+    E -.-> N
+    
+    style A fill:#e1f5ff
+    style C fill:#fff4e1
+    style E fill:#ffe1f5
+    style G fill:#e1ffe1
+    style N fill:#f0e1ff
+```
+
+### Component Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant FastAPI
+    participant ADK Agent
+    participant Tools
+    participant Gemini API
+    
+    Client->>FastAPI: POST /api/agent/chat
+    FastAPI->>ADK Agent: Process message
+    ADK Agent->>ADK Agent: Analyze request
+    ADK Agent->>Tools: Call appropriate tool
+    Tools->>Gemini API: Generate response
+    Gemini API-->>Tools: Return structured data
+    Tools-->>ADK Agent: Tool result
+    ADK Agent->>Gemini API: Generate final response
+    Gemini API-->>ADK Agent: Agent response
+    ADK Agent-->>FastAPI: Formatted response
+    FastAPI-->>Client: JSON response
+```
+
 ### Files Structure
 
 ```
 backend/
 ├── main.py              # FastAPI app with ADK endpoints
 ├── adk_agent.py         # ADK agent configuration and tools
+├── test_adk_agent.py    # Test suite for agent
 ├── requirements.txt     # Python dependencies
-└── .env                 # Environment variables
+├── .env                 # Environment variables
+└── agents/
+    └── learning_plan_agent/
+        ├── agent.py     # Standalone ADK agent
+        └── requirements.txt
 ```
 
 ### Agent Components
