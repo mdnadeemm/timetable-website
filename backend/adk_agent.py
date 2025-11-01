@@ -406,3 +406,4 @@ def chat_with_agent(message: str, conversation_history: Optional[List[Dict[str, 
             "message": "Failed to get agent response"
         }
 
+

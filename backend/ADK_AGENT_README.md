@@ -294,6 +294,25 @@ curl -X POST http://localhost:8000/api/agent/suggest-schedule \
   }'
 ```
 
+## Testing the Backend ADK Agent
+
+Before deploying or using the agent, you should test it to ensure everything is working correctly.
+
+### Run the Test Suite
+
+```bash
+cd backend
+python test_adk_agent.py
+```
+
+This will test:
+- Environment configuration
+- Module imports
+- Agent initialization
+- All tool functions (learning plan, schedule, progress, resources)
+
+The test suite will provide detailed output and indicate any issues that need to be resolved.
+
 ## Running the Server
 
 ### Development Mode
@@ -326,6 +345,47 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```bash
 ./start.sh
 ```
+
+## Running ADK API Server
+
+For local development and testing, you can run the ADK agent directly using the ADK CLI:
+
+```bash
+cd backend/agents
+adk api_server
+```
+
+This will start the ADK API server locally, allowing you to interact with the `learning_plan_agent` directly through the ADK interface.
+
+**Note:** Make sure you have the ADK CLI installed:
+```bash
+pip install google-adk[cli]
+```
+
+## Deploying to Cloud Run
+
+To deploy the learning plan agent to Google Cloud Run:
+
+```bash
+cd backend/agents
+adk deploy cloud_run learning_plan_agent
+```
+
+This command will:
+1. Package the agent
+2. Build a container image
+3. Deploy to Google Cloud Run
+4. Provide you with the deployment URL
+
+**Prerequisites:**
+- Google Cloud SDK installed and configured
+- Appropriate permissions for Cloud Run deployment
+- Project billing enabled (if required)
+
+**After deployment:**
+- The agent will be accessible via the provided Cloud Run URL
+- You can integrate this URL into your frontend application
+- The agent will automatically scale based on traffic
 
 ## Features & Benefits
 
@@ -474,4 +534,5 @@ See the existing `backendApi.ts` file for examples.
 ## License
 
 Same as the parent project.
+
 
