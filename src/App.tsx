@@ -3,9 +3,10 @@ import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
 import { TimetableGrid } from './components/TimetableGrid'
 import { AddEventDialog } from './components/AddEventDialog'
+import { LearningPlanDialog } from './components/LearningPlanDialog'
 import { DocumentViewer } from './components/DocumentViewer'
 import { Button } from './components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { TimetableProvider } from './context/TimetableContext'
 import { SettingsProvider } from './context/SettingsContext'
 import { ToastProvider } from './components/ui/toast'
@@ -14,6 +15,7 @@ import './App.css'
 
 function App() {
   const [isAddEventOpen, setIsAddEventOpen] = useState(false)
+  const [isLearningPlanOpen, setIsLearningPlanOpen] = useState(false)
   const [viewingDocument, setViewingDocument] = useState<TaskDocument | null>(null)
   const [viewingAllDocuments, setViewingAllDocuments] = useState<TaskDocument[]>([])
   const [viewingLink, setViewingLink] = useState<TaskLink | null>(null)
@@ -53,10 +55,16 @@ function App() {
               <main className="flex-1 p-6 overflow-y-auto overflow-x-hidden min-w-0">
                 <div className="flex justify-between items-center mb-6">
                   <h1 className="text-3xl font-bold">Timetable</h1>
-                  <Button onClick={() => setIsAddEventOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Event
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={() => setIsLearningPlanOpen(true)} variant="outline">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Generate Learning Plan
+                    </Button>
+                    <Button onClick={() => setIsAddEventOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Event
+                    </Button>
+                  </div>
                 </div>
                 
                 <TimetableGrid onViewDocument={handleViewDocument} onViewLink={handleViewLink} />
@@ -66,6 +74,11 @@ function App() {
             <AddEventDialog 
               open={isAddEventOpen} 
               onOpenChange={setIsAddEventOpen}
+            />
+
+            <LearningPlanDialog
+              open={isLearningPlanOpen}
+              onOpenChange={setIsLearningPlanOpen}
             />
 
             {/* Document Viewer - Overlay on top */}

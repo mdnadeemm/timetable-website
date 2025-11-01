@@ -74,6 +74,8 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [events, setEvents] = useState<Event[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [darkMode, setDarkMode] = useState(false)
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
+  const [description, setDescription] = useState<string>('')
 
   // Load events from localStorage on mount
   useEffect(() => {
@@ -267,15 +269,54 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     }))
   }
 
-  // Filter events based on search term
-  const filteredEvents = events.filter(event => 
-    event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.teacher?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.location?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Auto-select Week 1 if there are week-based events and no week is selected
+  useEffect(() => {
+    if (selectedWeek === null) {
+      const weekEvents = events.filter(event => event.week !== undefined && event.week !== null)
+      if (weekEvents.length > 0) {
+        const weeks = new Set(weekEvents.map(e => e.week).filter((w): w is number => w !== undefined))
+        const sortedWeeks = Array.from(weeks).sort((a, b) => a - b)
+        if (sortedWeeks.length > 0) {
+          setSelectedWeek(sortedWeeks[0]) // Select the first available week (usually Week 1)
+        }
+      }
+    }
+  }, [events, selectedWeek])
+
+  // Filter events based on search term and selected week
+  const filteredEvents = events.filter(event => {
+    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.teacher?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.location?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // Only show events for the selected week
+    // If selectedWeek is null, show all events (including those without a week)
+    // If selectedWeek is set, only show events from that specific week
+    const matchesWeek = selectedWeek === null 
+      ? true // Show all events when no week is selected
+      : event.week === selectedWeek // Only show events from the selected week
+    
+    return matchesSearch && matchesWeek
+  })
+
+  // Load description from localStorage
+  useEffect(() => {
+    const savedDescription = localStorage.getItem('timetable-description')
+    if (savedDescription) {
+      setDescription(savedDescription)
+    }
+  }, [])
+
+  // Save description to localStorage
+  useEffect(() => {
+    if (description) {
+      localStorage.setItem('timetable-description', description)
+    }
+  }, [description])
 
   const value: TimetableContextType = {
     events: filteredEvents,
+    allEvents: events, // Expose all events (unfiltered) for week button calculation
     addEvent,
     updateEvent,
     deleteEvent,
@@ -284,6 +325,10 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     setSearchTerm,
     darkMode,
     setDarkMode,
+    selectedWeek,
+    setSelectedWeek,
+    description,
+    setDescription,
     addTask,
     updateTask,
     deleteTask,

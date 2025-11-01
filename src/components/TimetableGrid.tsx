@@ -14,7 +14,7 @@ export const TimetableGrid: React.FC<{
   onViewDocument?: (document: TaskDocument, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => void
   onViewLink?: (link: TaskLink, allDocuments?: TaskDocument[], allLinks?: TaskLink[]) => void
 }> = ({ onViewDocument, onViewLink }) => {
-  const { events, updateEvent } = useTimetable()
+  const { events, allEvents, updateEvent, selectedWeek, setSelectedWeek } = useTimetable()
   const { settings } = useSettings()
   const { addToast } = useToast()
   const [draggedEvent, setDraggedEvent] = useState<string | null>(null)
@@ -372,6 +372,17 @@ export const TimetableGrid: React.FC<{
 
   const conflicts = getConflicts()
 
+  // Get all unique week numbers from all events (unfiltered) so all week buttons always show
+  const availableWeeks = useMemo(() => {
+    const weeks = new Set<number>()
+    allEvents.forEach(event => {
+      if (event.week) {
+        weeks.add(event.week)
+      }
+    })
+    return Array.from(weeks).sort((a, b) => a - b)
+  }, [allEvents])
+
   const formatTooltip = (event: import('../types').Event) => {
     return `${event.title}
 Teacher: ${event.teacher || 'Not specified'}
@@ -383,7 +394,32 @@ ${event.description ? `Description: ${event.description}` : ''}`
 
   return (
     <Card className="p-6 flex flex-col" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-      <div className="flex flex-col relative flex-1 min-h-0">
+      <div className="flex flex-row relative flex-1 min-h-0">
+        {/* Week Tabs on the left */}
+        {availableWeeks.length > 0 && (
+          <div className="flex flex-col gap-2 mr-4 flex-shrink-0" style={{ width: '100px' }}>
+            <div className="sticky top-0 z-40 bg-background pb-1 mb-1">
+              <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Weeks</div>
+            </div>
+            <div className="flex flex-col gap-1">
+              {availableWeeks.map(week => (
+                <button
+                  key={week}
+                  onClick={() => setSelectedWeek(week)}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    selectedWeek === week
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  Week {week}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col relative flex-1 min-h-0">
         {/* Single vertical zoom handle - fixed, doesn't scroll */}
         <div
           className={`zoom-handle absolute left-0 top-0 bottom-0 z-50 flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors duration-200 ${
@@ -673,6 +709,7 @@ ${event.description ? `Description: ${event.description}` : ''}`
               )
             })}
           </div>
+        </div>
         </div>
       </div>
       

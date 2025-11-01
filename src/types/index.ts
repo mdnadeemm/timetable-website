@@ -37,10 +37,12 @@ export interface Event {
     location?: string
     description?: string
     tasks?: Task[]
+    week?: number // Optional week number (1, 2, 3, etc.)
 }
 
 export interface TimetableContextType {
     events: Event[]
+    allEvents: Event[] // All events (unfiltered) for week button calculation
     addEvent: (event: Omit<Event, 'id'>) => void
     updateEvent: (id: string, event: Partial<Event>) => void
     deleteEvent: (id: string) => void
@@ -49,6 +51,10 @@ export interface TimetableContextType {
     setSearchTerm: (term: string) => void
     darkMode: boolean
     setDarkMode: (dark: boolean) => void
+    selectedWeek: number | null // null = show all weeks
+    setSelectedWeek: (week: number | null) => void
+    description: string
+    setDescription: (description: string) => void
     // Task management functions
     addTask: (eventId: string, task: Omit<Task, 'id' | 'order'>) => void
     updateTask: (eventId: string, taskId: string, updates: Partial<Task>) => void
