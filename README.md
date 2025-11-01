@@ -110,6 +110,247 @@ The learning plan feature can use either:
 
 The frontend will automatically detect and use the Python backend if it's available.
 
+### Testing the Backend ADK Agent
+
+Before deploying or using the agent, test it to ensure everything is working correctly:
+
+```bash
+cd backend
+python test_adk_agent.py
+```
+
+This will test:
+- Environment configuration
+- Module imports
+- Agent initialization
+- All tool functions (learning plan, schedule, progress, resources)
+
+The test suite will provide detailed output and indicate any issues that need to be resolved.
+
+### Running ADK API Server
+
+For local development and testing, you can run the ADK agent directly using the ADK CLI:
+
+```bash
+cd backend/agents
+adk api_server
+```
+
+This will start the ADK API server locally, allowing you to interact with the `learning_plan_agent` directly through the ADK interface.
+
+**Note:** Make sure you have the ADK CLI installed:
+```bash
+pip install google-adk[cli]
+```
+
+### Deploying to Cloud Run
+
+To deploy the learning plan agent to Google Cloud Run:
+
+```bash
+cd backend/agents
+adk deploy cloud_run learning_plan_agent
+```
+
+This command will:
+1. Package the agent
+2. Build a container image
+3. Deploy to Google Cloud Run
+4. Provide you with the deployment URL
+
+**Prerequisites:**
+- Google Cloud SDK installed and configured
+- Appropriate permissions for Cloud Run deployment
+- Project billing enabled (if required)
+
+**After deployment:**
+- The agent will be accessible via the provided Cloud Run URL
+- You can integrate this URL into your frontend application
+- The agent will automatically scale based on traffic
+
+### Deployment Options Summary
+
+| Option | Command | Use Case | Port |
+|--------|---------|----------|------|
+| **Test Agent** | `cd backend && python test_adk_agent.py` | Verify setup | N/A |
+| **ADK API Server** | `cd backend/agents && adk api_server` | Local ADK development | 8000 (default) |
+| **FastAPI Server** | `cd backend && python main.py` | Integrated backend | 8000 |
+| **Cloud Run** | `cd backend/agents && adk deploy cloud_run learning_plan_agent` | Production deployment | Cloud-provided |
+
+For more detailed information about the ADK agent implementation, see [backend/ADK_AGENT_README.md](backend/ADK_AGENT_README.md).
+
+## Architecture
+
+### Full Application Diagram
+
+```mermaid
+graph TB
+    subgraph "User Interface"
+        A[Web Browser<br/>http://localhost:5173]
+        B[React Frontend<br/>React + TypeScript + Vite]
+    end
+    
+    subgraph "Frontend Components"
+        C[Header Component]
+        D[Sidebar Component]
+        E[TimetableGrid Component]
+        F[LearningPlanDialog]
+        G[AddEventDialog]
+        H[TaskPanel]
+        I[DocumentViewer]
+    end
+    
+    subgraph "Frontend Services"
+        J[learningAgent.ts<br/>API Client]
+        K[TimetableContext<br/>State Management]
+        L[SettingsContext<br/>User Preferences]
+    end
+    
+    subgraph "Backend API Layer"
+        M[FastAPI Server<br/>Port 8000]
+        N[API Endpoints<br/>/api/agent/*]
+    end
+    
+    subgraph "ADK Agent System"
+        O[ADK Agent<br/>timetable_agent]
+        P[Learning Plan Agent<br/>backend/agents/learning_plan_agent]
+        Q[Agent Tools]
+    end
+    
+    subgraph "External Services"
+        R[Google Gemini API<br/>gemini-2.0-flash-exp]
+        S[Cloud Run<br/>Optional Deployment]
+    end
+    
+    subgraph "Data Storage"
+        T[Local Storage<br/>Browser Storage]
+        U[Session Storage<br/>Conversation History]
+    end
+    
+    A --> B
+    B --> C
+    B --> D
+    B --> E
+    B --> F
+    B --> G
+    B --> H
+    B --> I
+    
+    F --> J
+    G --> K
+    E --> K
+    B --> L
+    
+    J --> M
+    M --> N
+    N --> O
+    N --> P
+    
+    O --> Q
+    P --> Q
+    Q --> R
+    
+    P -.->|Deploy| S
+    
+    K --> T
+    O --> U
+    
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style M fill:#fff4e1
+    style O fill:#ffe1f5
+    style P fill:#ffe1f5
+    style R fill:#e1ffe1
+    style S fill:#f0e1ff
+```
+
+### Application Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant API_Client
+    participant FastAPI
+    participant ADK_Agent
+    participant Gemini_API
+    participant Storage
+    
+    User->>Frontend: Open Learning Plan Dialog
+    Frontend->>API_Client: Check Backend Health
+    API_Client->>FastAPI: GET /api/agent/status
+    FastAPI-->>API_Client: Agent Available
+    
+    User->>Frontend: Submit Learning Plan Request
+    Frontend->>API_Client: Generate Learning Plan
+    API_Client->>FastAPI: POST /api/agent/chat
+    FastAPI->>ADK_Agent: Process Request
+    
+    ADK_Agent->>Gemini_API: Generate Plan with Tools
+    Gemini_API-->>ADK_Agent: Structured Learning Plan
+    
+    ADK_Agent-->>FastAPI: JSON Response
+    FastAPI-->>API_Client: Learning Plan Data
+    API_Client-->>Frontend: Update UI
+    
+    Frontend->>Storage: Save Events to Context
+    Frontend->>Storage: Persist to LocalStorage
+    Frontend-->>User: Display Timetable with Events
+```
+
+### Component Interaction Diagram
+
+```mermaid
+graph LR
+    subgraph "Frontend Layer"
+        A[App.tsx<br/>Root Component]
+        B[Header]
+        C[Sidebar]
+        D[TimetableGrid]
+        E[LearningPlanDialog]
+        F[AddEventDialog]
+        G[TaskPanel]
+    end
+    
+    subgraph "Context Layer"
+        H[TimetableContext<br/>Events & Tasks]
+        I[SettingsContext<br/>User Settings]
+    end
+    
+    subgraph "Service Layer"
+        J[learningAgent.ts<br/>Backend Communication]
+    end
+    
+    subgraph "Backend Layer"
+        K[FastAPI<br/>REST API]
+        L[ADK Agent<br/>AI Processing]
+    end
+    
+    A --> B
+    A --> C
+    A --> D
+    A --> E
+    A --> F
+    
+    D --> G
+    E --> J
+    F --> H
+    
+    A --> H
+    A --> I
+    
+    J --> K
+    K --> L
+    
+    H -.->|State Updates| D
+    H -.->|State Updates| G
+    
+    style A fill:#e1f5ff
+    style H fill:#fff4e1
+    style J fill:#ffe1f5
+    style L fill:#e1ffe1
+```
+
 ## Usage
 
 Open your browser and navigate to `http://localhost:5173` (or the port shown in the terminal).
@@ -126,6 +367,7 @@ Open your browser and navigate to `http://localhost:5173` (or the port shown in 
 ### Backend (Optional)
 - Python 3.8+
 - FastAPI
+- Google ADK (Agent Development Kit)
 - Google Generative AI SDK
 - Uvicorn
 

@@ -11,6 +11,73 @@ The ADK agent extends the basic timetable functionality with:
 - **Progress tracking and analysis**
 - **Resource recommendations**
 
+## Quick Start Guide
+
+### Step 1: Test the Backend ADK Agent
+
+Before deploying, test the agent to ensure everything works:
+
+```bash
+cd backend
+python test_adk_agent.py
+```
+
+This will verify:
+- Environment configuration
+- Module imports
+- Agent initialization
+- All tool functions
+
+### Step 2: Run the ADK API Server (Local Development)
+
+To run the ADK agent directly using the ADK CLI:
+
+```bash
+cd backend/agents
+adk api_server
+```
+
+This starts the ADK API server locally, allowing direct interaction with the `learning_plan_agent`.
+
+**Note:** Install ADK CLI if needed:
+```bash
+pip install google-adk[cli]
+```
+
+### Step 3: Deploy to Cloud Run (Production)
+
+Deploy the learning plan agent to Google Cloud Run:
+
+```bash
+cd backend/agents
+adk deploy cloud_run learning_plan_agent
+```
+
+This will:
+1. Package the agent
+2. Build a container image
+3. Deploy to Google Cloud Run
+4. Provide the deployment URL
+
+**Prerequisites:**
+- Google Cloud SDK installed and configured
+- Appropriate permissions for Cloud Run deployment
+- Project billing enabled (if required)
+
+### Alternative: Run FastAPI Server
+
+You can also run the integrated FastAPI server:
+
+```bash
+cd backend
+python main.py
+```
+
+Or with uvicorn:
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
 ## Application Architecture
 
 ### Full Application Diagram
@@ -641,6 +708,40 @@ This command will:
 - The agent will be accessible via the provided Cloud Run URL
 - You can integrate this URL into your frontend application
 - The agent will automatically scale based on traffic
+
+### Connecting Frontend to ADK API Server
+
+After running `adk api_server` or deploying to Cloud Run, you can connect your frontend to the ADK API server:
+
+#### Option 1: Using ADK API Server (Local)
+
+When running `adk api_server` locally, the frontend should connect to the ADK API endpoints. Update your frontend configuration:
+
+```typescript
+// In src/services/learningAgent.ts
+const BACKEND_API_URL = 'http://localhost:8000' // ADK API Server default port
+```
+
+#### Option 2: Using Cloud Run Deployment
+
+After deploying to Cloud Run, update your frontend environment variables:
+
+```env
+VITE_BACKEND_API_URL=https://your-cloud-run-url.run.app
+```
+
+#### Option 3: Using FastAPI Server (Integrated)
+
+The FastAPI server (`main.py`) integrates the ADK agent and provides REST endpoints at `/api/agent/*`. This is the default option when running `python main.py`.
+
+### Deployment Options Summary
+
+| Option | Command | Use Case | Port |
+|--------|---------|----------|------|
+| **Test Agent** | `python test_adk_agent.py` | Verify setup | N/A |
+| **ADK API Server** | `cd backend/agents && adk api_server` | Local ADK development | 8000 (default) |
+| **FastAPI Server** | `cd backend && python main.py` | Integrated backend | 8000 |
+| **Cloud Run** | `cd backend/agents && adk deploy cloud_run learning_plan_agent` | Production deployment | Cloud-provided |
 
 ## Features & Benefits
 
