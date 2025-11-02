@@ -1,6 +1,6 @@
 ## Inspiration
 
-As students and lifelong learners, we often struggle with creating structured, personalized learning plans that adapt to our schedules and learning styles. Traditional timetable apps are rigid and don't consider our individual learning goals or progress. We were inspired to build **Xdgn**—an intelligent timetable management system that combines the visual clarity of a weekly schedule with AI-powered learning plan generation.
+As students and lifelong learners, we often struggle with creating structured, personalized learning plans that adapt to our schedules and learning styles. Traditional timetable apps are rigid and don't consider our individual learning goals or progress. We were inspired to build **AI TimeTable**—an intelligent timetable management system that combines the visual clarity of a weekly schedule with AI-powered learning plan generation.
 
 The idea came from our own experiences juggling multiple learning goals, where we needed a tool that could:
 
@@ -18,7 +18,7 @@ We wanted to leverage cutting-edge AI technology (Google's Gemini model via ADK)
 
 ## What it does
 
-**Xdgn** is an intelligent timetable management web application that transforms how you plan and track your learning journey. The application provides:
+**AI TimeTable** is an intelligent timetable management web application that transforms how you plan and track your learning journey. The application provides:
 
 - **Interactive Timetable Grid**: A visual weekly schedule where you can see all your learning sessions, events, and commitments at a glance. Color-coded events make it easy to distinguish between different subjects or activities.
 
@@ -128,7 +128,7 @@ The backend is built with Python and integrates cutting-edge AI: FastAPI for hig
 
 11. **AI Response Handling**: We learned sophisticated techniques for parsing and handling different AI response formats, including JSON extraction, markdown processing, and error recovery.
 
-## What's next for Xdgn
+## What's next for AI TimeTable
 
 1. **Enhanced AI Features**: Real-time progress tracking with AI-powered insights, adaptive learning plan adjustments based on completion rates, personalized resource recommendations based on learning style, natural language queries for schedule modifications, batch task content generation for all tasks in an event or week at once, content refinement to edit and improve generated task content with AI assistance, and multi-language support to generate task content in different languages.
 

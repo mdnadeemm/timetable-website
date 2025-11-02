@@ -25,43 +25,17 @@ A modern timetable management web application built with React, TypeScript, and 
    cd timetable-website
    ```
 
-2. Install dependencies:
+2. Install frontend dependencies:
    ```bash
    npm install
    ```
 
-3. Set up environment variables:
-   Create a `.env` file in the project root:
-   ```env
-   VITE_GOOGLE_AI_API_KEY=your_api_key_here
-   ```
-   
-   To get a Google AI API key:
-   - Visit https://aistudio.google.com/app/apikey
-   - Create a new API key
-   - Copy it to your `.env` file
-   
-   **Note**: All environment variables must be prefixed with `VITE_` to be exposed to the client.
-
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## Python Backend Setup (Optional - for AI Learning Plans)
-
-The learning plan feature can use either:
-1. **Python Backend** (Recommended) - More secure, uses Google's official Python SDK
-2. Direct browser API calls - Simpler but exposes API key
-
-### Setting up Python Backend
-
-1. Navigate to the backend directory:
+3. Set up the Python backend (Required for AI features):
    ```bash
    cd backend
    ```
 
-2. Create and activate a virtual environment:
+4. Create and activate a virtual environment:
    ```bash
    # Windows
    python -m venv venv
@@ -72,79 +46,63 @@ The learning plan feature can use either:
    source venv/bin/activate
    ```
 
-3. Install dependencies:
+5. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. The `.env` file should already be configured (copied from the frontend setup)
+6. Set up environment variables:
+   Create a `.env` file in the `backend/agents/learning_plan_agent` directory:
+   ```env
+   GOOGLE_GENAI_USE_VERTEXAI=0
+   GOOGLE_API_KEY=your_api_key
+   ```
+   
+   To get a Google AI API key:
+   - Visit https://aistudio.google.com/app/apikey
+   - Create a new API key
+   - Copy it to your `backend/agents/learning_plan_agent/.env` file
 
-5. Start the backend server:
+7. Start the backend server:
+   Navigate to the agents directory and start the ADK API server:
    ```bash
-   # Windows (PowerShell)
-   .\start.ps1
-
-   # macOS/Linux
-   chmod +x start.sh
-   ./start.sh
-
-   # Or manually
-   python main.py
+   cd backend/agents
+   adk api_server
    ```
 
-6. Backend will run on `http://localhost:8000`
-   - API Documentation: http://localhost:8000/docs
-   - Health Check: http://localhost:8000/api/health
-
-### Running Both Frontend and Backend
-
-1. **Terminal 1** - Backend (Python):
+8. In a new terminal, start the frontend development server:
    ```bash
-   cd backend
-   python main.py
+   # From the project root directory
+   npm run dev
    ```
+
+**Important Notes:**
+- The Python backend is **required** for AI-powered features (learning plan generation and task content generation)
+- The API key should be placed in `backend/agents/learning_plan_agent/.env`, **not** in the root `.env` file
+- The backend runs on `http://localhost:8000` by default
+
+## Running Both Frontend and Backend
+
+The application requires both servers to be running:
+
+1. **Terminal 1** - Backend (ADK API Server):
+   ```bash
+   cd backend/agents
+   adk api_server
+   ```
+   Wait for the message indicating the server is running on `http://localhost:8000`
 
 2. **Terminal 2** - Frontend (React):
    ```bash
    npm run dev
    ```
+   The frontend will start on `http://localhost:5173` (or the port shown in the terminal)
 
-The frontend will automatically detect and use the Python backend if it's available.
+The frontend will automatically detect and use the Python backend if it's available. **AI features will not work without the backend running.**
 
-### Testing the Backend ADK Agent
 
-Before deploying or using the agent, test it to ensure everything is working correctly:
 
-```bash
-cd backend
-python test_adk_agent.py
-```
-
-This will test:
-- Environment configuration
-- Module imports
-- Agent initialization
-- All tool functions (learning plan, schedule, progress, resources)
-
-The test suite will provide detailed output and indicate any issues that need to be resolved.
-
-### Running ADK API Server
-
-For local development and testing, you can run the ADK agent directly using the ADK CLI:
-
-```bash
-cd backend/agents
-adk api_server
-```
-
-This will start the ADK API server locally, allowing you to interact with the `learning_plan_agent` directly through the ADK interface.
-
-**Note:** Make sure you have the ADK CLI installed:
-```bash
-pip install google-adk[cli]
-```
-
-### Deploying to Cloud Run
+## Deploying to Cloud Run
 
 To deploy the learning plan agent to Google Cloud Run:
 
@@ -168,17 +126,6 @@ This command will:
 - The agent will be accessible via the provided Cloud Run URL
 - You can integrate this URL into your frontend application
 - The agent will automatically scale based on traffic
-
-### Deployment Options Summary
-
-| Option | Command | Use Case | Port |
-|--------|---------|----------|------|
-| **Test Agent** | `cd backend && python test_adk_agent.py` | Verify setup | N/A |
-| **ADK API Server** | `cd backend/agents && adk api_server` | Local ADK development | 8000 (default) |
-| **FastAPI Server** | `cd backend && python main.py` | Integrated backend | 8000 |
-| **Cloud Run** | `cd backend/agents && adk deploy cloud_run learning_plan_agent` | Production deployment | Cloud-provided |
-
-For more detailed information about the ADK agent implementation, see [backend/ADK_AGENT_README.md](backend/ADK_AGENT_README.md).
 
 ## Architecture
 
@@ -356,26 +303,66 @@ graph LR
 
 Open your browser and navigate to `http://localhost:5173` (or the port shown in the terminal).
 
-### Task Content Generation
+### Generate AI-Powered Learning Plans
 
-Each task in your timetable has a **Generate Content** button (✨ icon). Clicking it will:
+1. **Open the Learning Plan Generator**
+   - Click the "Generate Learning Plan" button in the application header
 
-1. Generate detailed markdown content specific to that task
-2. Include context about the event, topic, and learning objectives
-3. Provide step-by-step instructions, resources, and acceptance criteria
-4. Automatically attach the generated markdown file to the task
+2. **Configure Your Learning Plan**
+   - **Skill**: Enter the skill or subject you want to learn (e.g., "React Development", "Python Programming", "Data Science")
+   - **Number of Weeks**: Specify the duration of your learning journey (e.g., 4, 8, 12 weeks)
+   - **Hours per Week**: Set your available study time per week (e.g., 10, 15, 20 hours)
+   - **Difficulty Level**: Choose your experience level (Beginner, Intermediate, Advanced)
+   - **Focus Areas** (Optional): Specify particular topics or areas you want to emphasize
 
-The generated content includes:
-- Task overview and goals
-- Prerequisites
-- Context and connections to the learning plan
-- Step-by-step instructions
-- Resources and references
-- Acceptance criteria
-- Deliverables
-- Optional extension activities
+3. **Generate the Plan**
+   - Click "Generate" and the AI will create a comprehensive learning plan
+   - The AI generates:
+     - **Weekly Structure**: Organized plan divided into your specified number of weeks
+     - **Daily Events**: Learning sessions scheduled across weekdays (Monday-Friday) with specific time slots
+     - **Event Details**: Each event includes title, description, teacher, location, and time
+     - **Associated Tasks**: 2-5 practical tasks for each learning session to complete during or after the event
 
-**Note:** This feature requires the ADK backend agent to be running. See the backend setup section above.
+4. **View Your Timetable**
+   - The generated plan appears as a visual weekly timetable
+   - Events are color-coded for easy identification
+   - Click any event to view details and associated tasks
+
+### AI-Powered Task Content Generation
+
+Each task in your timetable can be enhanced with detailed learning materials:
+
+1. **Generate Task Content**
+   - Click the **✨ Generate Content** button on any task
+   - The AI analyzes the task within the context of your learning plan and generates detailed markdown content
+
+2. **Generated Content Includes**
+   - Task overview and learning objectives
+   - Prerequisites and required knowledge
+   - Context connecting to the overall learning plan and week objectives
+   - Step-by-step instructions
+   - Curated resources and references
+   - Acceptance criteria (checklist format)
+   - Deliverables specification
+   - Optional extension activities for deeper learning
+
+3. **Access Generated Content**
+   - The markdown file is automatically attached to the task
+   - Click the dropdown arrow on the task to view all attachments
+   - Click on the markdown file to open and read the detailed content
+   - All files are saved locally and persist across sessions
+
+### Managing Your Timetable
+
+- **Add Events Manually**: Create custom events outside the AI-generated plan
+- **Edit Events**: Modify event details, times, and descriptions
+- **Task Management**: Mark tasks as complete, reorder them via drag-and-drop
+- **Attach Files**: Upload documents, PDFs, images, or links to tasks
+- **Filter by Week**: Focus on specific weeks of your learning plan
+- **Search**: Quickly find events and tasks
+- **Export/Import**: Backup and share your timetable
+
+**Note:** AI features (learning plan generation and task content generation) **require** the ADK backend agent to be running. Make sure you've set up the Python backend with the API key in `backend/agents/learning_plan_agent/.env` and started the server before using these features.
 
 ## Technologies Used
 
@@ -386,7 +373,7 @@ The generated content includes:
 - Vite
 - ESLint
 
-### Backend (Optional)
+### Backend (Required for AI Features)
 - Python 3.8+
 - FastAPI
 - Google ADK (Agent Development Kit)
