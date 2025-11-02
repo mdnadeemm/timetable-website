@@ -12,6 +12,7 @@ A modern timetable management web application built with React, TypeScript, and 
 - Interactive timetable grid
 - Add, edit, and delete events
 - AI-powered learning plan generator (Python backend)
+- **AI-powered task content generation** - Generate detailed markdown content for individual tasks
 - Task panel integration
 - Export and import functionality
 - Responsive design
@@ -354,6 +355,27 @@ graph LR
 ## Usage
 
 Open your browser and navigate to `http://localhost:5173` (or the port shown in the terminal).
+
+### Task Content Generation
+
+Each task in your timetable has a **Generate Content** button (✨ icon). Clicking it will:
+
+1. Generate detailed markdown content specific to that task
+2. Include context about the event, topic, and learning objectives
+3. Provide step-by-step instructions, resources, and acceptance criteria
+4. Automatically attach the generated markdown file to the task
+
+The generated content includes:
+- Task overview and goals
+- Prerequisites
+- Context and connections to the learning plan
+- Step-by-step instructions
+- Resources and references
+- Acceptance criteria
+- Deliverables
+- Optional extension activities
+
+**Note:** This feature requires the ADK backend agent to be running. See the backend setup section above.
 
 ## Technologies Used
 

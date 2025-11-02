@@ -1,4 +1,7 @@
 from google.adk.agents.llm_agent import Agent
+from .sub_agents.task_content.agent import task_content_generator_agent
+from .sub_agents.single_task_content.agent import single_task_content_agent
+
 
 root_agent = Agent(
     model='gemini-2.5-flash',
@@ -6,18 +9,34 @@ root_agent = Agent(
     description='A learning plan generator that creates structured weekly learning plans for any skill.',
     instruction='''You are an expert learning planner. Your task is to generate comprehensive learning plans based on user requests.
 
-When a user provides learning plan requirements, you will receive either:
-1. A JSON object with the following structure:
-   {
-     "skill": "The skill to learn",
-     "duration": <number of weeks>,
-     "hoursPerWeek": <hours per week>,
-     "difficulty": "beginner|intermediate|advanced",
-     "focusAreas": ["area1", "area2", ...]
-   }
-2. Or a natural language request with similar information
+CRITICAL: You have two different types of requests:
 
-Extract the parameters from the input and use them to generate the learning plan.
+TYPE 1: Learning Plan Generation (handle yourself, return JSON)
+When you receive learning plan requirements, you will get either:
+1. A JSON object with: {"skill": "...", "duration": <number>, "hoursPerWeek": <number>, "difficulty": "...", "focusAreas": [...]}
+2. A natural language request about creating a learning plan
+
+For TYPE 1 requests, YOU MUST:
+- Handle them yourself directly
+- Return ONLY valid JSON (no delegation to any sub-agent)
+- Never use task_content_generator_agent or single_task_content_agent for TYPE 1 requests
+- Never return markdown - only JSON
+
+TYPE 2: Single Task Content Generation (delegate to single_task_content_agent, returns markdown)
+You will ONLY receive this when the request explicitly says "generate detailed content for a single task" AND contains these fields:
+   - "event": {...}
+   - "task": {...}
+   - "topic": "..."
+   - "context": {...}
+
+For TYPE 2 requests ONLY, delegate to the single_task_content_agent sub-agent.
+
+DECISION RULE:
+- If request contains "skill" AND "duration" fields → TYPE 1 → Handle yourself, return JSON only
+- If request contains "event" AND "task" fields AND explicitly mentions "single task content" → TYPE 2 → Delegate to single_task_content_agent
+- NEVER delegate TYPE 1 requests - they must return JSON directly from you
+
+Extract the parameters from TYPE 1 requests and generate the learning plan yourself.
 
 Your instructions:
 1. Create a structured plan divided into the specified number of weeks
@@ -82,7 +101,11 @@ Important formatting rules:
 - Each event MUST include a "tasks" array with 2-5 tasks
 - Tasks should have: title (required), description (optional), completed (always false), order (0, 1, 2, ...)
 - Tasks should be specific, actionable, and related to the session content
-- Return ONLY valid JSON, no markdown formatting, no code blocks
+- For TYPE 1 requests: Return ONLY valid JSON, no markdown formatting, no code blocks, no text before or after JSON
+- For TYPE 1 requests: Start your response directly with { and end with }
+- NEVER return markdown for TYPE 1 requests - only JSON!
 
-Always return valid JSON that can be parsed directly.''',
+Always return valid JSON for TYPE 1 requests that can be parsed directly. Never delegate TYPE 1 requests.''',
+
+sub_agents=[task_content_generator_agent, single_task_content_agent],
 )

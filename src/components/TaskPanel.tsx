@@ -5,10 +5,11 @@ import { useTimetable } from '../context/TimetableContext'
 import { useToast } from './ui/toast'
 import { TimePicker } from './TimePicker'
 import { parseTimeString } from '../utils/timeUtils'
-import { CheckSquare, Edit3, X, Plus, Trash2, Edit, ChevronDown, ChevronUp, GripVertical, ListTodo, Check, ClipboardList, CheckCircle2, Paperclip, FileText, Image as ImageIcon, FileSpreadsheet, File, Link as LinkIcon } from 'lucide-react'
+import { CheckSquare, Edit3, X, Plus, Trash2, Edit, ChevronDown, ChevronUp, GripVertical, ListTodo, Check, ClipboardList, CheckCircle2, Paperclip, FileText, Image as ImageIcon, FileSpreadsheet, File, Link as LinkIcon, Sparkles } from 'lucide-react'
 import { Checkbox } from './ui/checkbox'
 import type { TaskDocument, TaskLink } from '../types'
 import { v4 as uuidv4 } from 'uuid'
+import { generateTaskContent, type TaskContentRequest } from '../services/learningAgent'
 
 interface TaskPanelProps {
   open: boolean
@@ -84,6 +85,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   const [newLinkTitle, setNewLinkTitle] = useState('')
   const [editingLinkUrl, setEditingLinkUrl] = useState('')
   const [editingLinkTitle, setEditingLinkTitle] = useState('')
+  const [generatingTaskId, setGeneratingTaskId] = useState<string | null>(null)
 
   const [eventFormData, setEventFormData] = useState<EventFormData>({
     title: '',
@@ -559,6 +561,100 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     }
   }
 
+  const handleGenerateTaskContent = async (taskId: string) => {
+    if (!eventId || !event) return
+
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    setGeneratingTaskId(taskId)
+
+    try {
+      // Build the request for the agent
+      const request: TaskContentRequest = {
+        event: {
+          title: event.title,
+          day: event.day,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          description: event.description,
+          teacher: event.teacher,
+          location: event.location,
+          week: event.week
+        },
+        task: {
+          title: task.title,
+          description: task.description,
+          order: task.order
+        },
+        topic: event.title, // Use event title as the topic being learned
+        context: {
+          weekTitle: event.week ? `Week ${event.week}` : undefined,
+          weekDescription: event.description,
+          learningObjectives: [] // Could be enhanced to include week objectives if available
+        }
+      }
+
+      // Generate the markdown content
+      const markdownContent = await generateTaskContent(request)
+
+      // Create a filename for the markdown file
+      const filename = `${task.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_content.md`
+
+      // Convert markdown content to a TaskDocument
+      const markdownBlob = new Blob([markdownContent], { type: 'text/markdown' })
+      const reader = new FileReader()
+      
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string
+        
+        const newDocument: TaskDocument = {
+          id: uuidv4(),
+          name: filename,
+          type: 'text/markdown',
+          size: markdownBlob.size,
+          data: dataUrl,
+          uploadedAt: new Date()
+        }
+
+        // Get existing documents or create new array
+        const existingDocuments = task.documents || []
+        const updatedDocuments = [...existingDocuments, newDocument]
+
+        // Update the task with the new document
+        updateTask(eventId, taskId, {
+          documents: updatedDocuments
+        })
+
+        addToast({
+          title: 'Content Generated',
+          description: 'Task content has been generated and attached successfully.',
+          variant: 'success'
+        })
+
+        setGeneratingTaskId(null)
+      }
+
+      reader.onerror = () => {
+        addToast({
+          title: 'Error',
+          description: 'Failed to process generated content.',
+          variant: 'destructive'
+        })
+        setGeneratingTaskId(null)
+      }
+
+      reader.readAsDataURL(markdownBlob)
+    } catch (error: any) {
+      addToast({
+        title: 'Generation Failed',
+        description: error.message || 'Failed to generate task content. Please try again.',
+        variant: 'destructive'
+      })
+      setGeneratingTaskId(null)
+    }
+  }
+
   return (
     <div className="fixed right-0 top-0 h-full w-96 bg-white border-l border-gray-300 shadow-lg z-[100] flex flex-col">
       {/* Header */}
@@ -985,6 +1081,23 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                                 variant="ghost"
                                 onClick={(e) => {
                                   e.stopPropagation()
+                                  handleGenerateTaskContent(task.id)
+                                }}
+                                className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
+                                disabled={generatingTaskId === task.id}
+                                title="Generate detailed content"
+                              >
+                                {generatingTaskId === task.id ? (
+                                  <Sparkles className="h-3 w-3 animate-pulse" />
+                                ) : (
+                                  <Sparkles className="h-3 w-3" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation()
                                   handleEditStart(task)
                                 }}
                                 className="h-6 w-6 p-0"
@@ -1212,6 +1325,23 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                               <span className="text-xs text-gray-500">
                                 {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : ''}
                               </span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleGenerateTaskContent(task.id)
+                                }}
+                                className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
+                                disabled={generatingTaskId === task.id}
+                                title="Generate detailed content"
+                              >
+                                {generatingTaskId === task.id ? (
+                                  <Sparkles className="h-3 w-3 animate-pulse" />
+                                ) : (
+                                  <Sparkles className="h-3 w-3" />
+                                )}
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"

@@ -363,6 +363,113 @@ export async function generateLearningPlanWithFallback(request: LearningPlanRequ
 }
 
 /**
+ * Interface for task content generation request
+ */
+export interface TaskContentRequest {
+  event: {
+    title: string
+    day: number
+    startTime: string
+    endTime: string
+    description?: string
+    teacher?: string
+    location?: string
+    week?: number
+  }
+  task: {
+    title: string
+    description?: string
+    order: number
+  }
+  topic: string
+  context: {
+    weekTitle?: string
+    weekDescription?: string
+    learningObjectives?: string[]
+  }
+}
+
+/**
+ * Generate detailed markdown content for a specific task
+ */
+export async function generateTaskContent(request: TaskContentRequest): Promise<string> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), BACKEND_REQUEST_TIMEOUT)
+  
+  // Ensure session exists
+  await ensureSession()
+  
+  // Build request message
+  const requestMessage = JSON.stringify(request, null, 2)
+  
+  try {
+    // Use the single_task_content_agent via ADK API
+    // For now, we'll use the learning_plan_agent and pass the request in a way it can handle
+    // The agent's sub-agent should handle single task content generation
+    const agentName = AGENT_NAME
+    
+    const response = await fetch(`${BACKEND_API_URL}/run`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        app_name: agentName,
+        user_id: USER_ID,
+        session_id: SESSION_ID,
+        new_message: {
+          role: 'user',
+          parts: [
+            { text: `You are being asked to generate detailed content for a single task. Use the single_task_content_agent sub-agent to handle this request.\n\nRequest data:\n${requestMessage}` }
+          ]
+        },
+        streaming: false
+      }),
+    })
+    
+    clearTimeout(timeoutId)
+    
+    if (!response.ok) {
+      throw new Error(`Backend API error: ${response.status} ${response.statusText}`)
+    }
+    
+    // Extract the text response from the events
+    const events = await response.json()
+    let agentResponse = ''
+    
+    if (Array.isArray(events)) {
+      for (const event of events) {
+        if (event.content && event.content.parts) {
+          for (const part of event.content.parts) {
+            if (part.text) {
+              agentResponse += part.text
+            }
+          }
+        }
+      }
+    }
+    
+    if (!agentResponse) {
+      throw new Error('No response text from agent')
+    }
+    
+    // Clean the response text (remove markdown code blocks if present)
+    let cleanedText = agentResponse.trim()
+    cleanedText = cleanedText.replace(/```markdown\n?/g, '').replace(/```\n?/g, '')
+    cleanedText = cleanedText.trim()
+    
+    return cleanedText
+  } catch (error: any) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      throw new Error(`Backend API request timeout after ${BACKEND_REQUEST_TIMEOUT / 1000} seconds.`)
+    }
+    throw new Error(`Failed to generate task content: ${error.message || 'Unknown error'}`)
+  }
+}
+
+/**
  * Generate a basic fallback plan when API is unavailable
  */
 function generateFallbackPlan(request: LearningPlanRequest): LearningPlan {

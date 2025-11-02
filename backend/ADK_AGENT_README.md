@@ -8,6 +8,7 @@ The ADK agent extends the basic timetable functionality with:
 - **Multi-turn conversations** with context awareness
 - **Tool-calling capabilities** for structured operations
 - **Advanced reasoning** for personalized learning plans
+- **Task content generation** - Generate detailed markdown content for individual tasks
 - **Progress tracking and analysis**
 - **Resource recommendations**
 
@@ -113,6 +114,7 @@ graph TB
     subgraph "ADK Agent System"
         O[ADK Agent<br/>timetable_agent]
         P[Learning Plan Agent<br/>backend/agents/learning_plan_agent]
+        P1[Single Task Content Agent<br/>Generates detailed task markdown]
         Q[Agent Tools]
     end
     
@@ -144,9 +146,11 @@ graph TB
     M --> N
     N --> O
     N --> P
+    N --> P1
     
     O --> Q
     P --> Q
+    P --> P1
     Q --> R
     
     P -.->|Deploy| S
@@ -368,8 +372,16 @@ backend/
 ├── .env                 # Environment variables
 └── agents/
     └── learning_plan_agent/
-        ├── agent.py     # Standalone ADK agent
-        └── requirements.txt
+        ├── agent.py     # Root ADK agent
+        ├── requirements.txt
+        └── sub_agents/
+            ├── task_content/
+            │   ├── agent.py     # Generates content for all tasks in a plan
+            │   ├── prompt.py
+            │   └── tools.py
+            └── single_task_content/
+                ├── agent.py     # Generates detailed content for a single task
+                └── prompt.py
 ```
 
 ### Agent Components
@@ -380,7 +392,14 @@ The main agent (`timetable_agent`) is configured with:
 - Instructions: Expert learning planner persona
 - Tools: 4 specialized tools for learning assistance
 
-#### 2. **Custom Tools**
+#### 2. **Sub-Agents**
+
+| Sub-Agent | Purpose | Output Format |
+|-----------|---------|---------------|
+| `task_content_generator_agent` | Generates detailed markdown content for all tasks in a learning plan | Markdown file |
+| `single_task_content_agent` | Generates detailed markdown content for a specific individual task | Markdown text |
+
+#### 3. **Custom Tools**
 
 | Tool | Purpose | Parameters |
 |------|---------|------------|
@@ -533,6 +552,43 @@ Get curated learning resources for specific topics.
   "resource_type": "all"
 }
 ```
+
+### Generate Task Content
+
+**POST** `/api/run` (via ADK API Server)
+
+Generate detailed markdown content for a specific task. This is automatically called when a user clicks the "Generate Content" button on a task.
+
+**Request Structure:**
+```json
+{
+  "app_name": "learning_plan_agent",
+  "user_id": "default_user",
+  "session_id": "default_session",
+  "new_message": {
+    "role": "user",
+    "parts": [
+      {
+        "text": "You are being asked to generate detailed content for a single task. Use the single_task_content_agent sub-agent to handle this request.\n\nRequest data:\n{\"event\": {...}, \"task\": {...}, \"topic\": \"...\", \"context\": {...}}"
+      }
+    ]
+  },
+  "streaming": false
+}
+```
+
+**Response:**
+Markdown text containing:
+- Task overview and goals
+- Prerequisites
+- Context and connections
+- Step-by-step instructions
+- Resources and references
+- Acceptance criteria
+- Deliverables
+- Extension activities
+
+**Note:** The generated markdown is automatically attached to the task as a document file.
 
 ## Usage Examples
 
@@ -760,12 +816,19 @@ The FastAPI server (`main.py`) integrates the ADK agent and provides REST endpoi
 - Considers time constraints and goals
 - Provides realistic, achievable plans
 
-### 4. **Progress Tracking**
+### 4. **Task Content Generation**
+- Generate detailed markdown content for individual tasks
+- Includes context from event, topic, and learning objectives
+- Provides step-by-step instructions, resources, and acceptance criteria
+- Automatically attaches generated content to tasks
+- Context-aware and specific to each task
+
+### 5. **Progress Tracking**
 - Monitors learning progress
 - Identifies when users fall behind
 - Provides actionable recommendations
 
-### 5. **Resource Discovery**
+### 6. **Resource Discovery**
 - Curates high-quality learning materials
 - Recommends appropriate resources for skill level
 - Covers multiple learning modalities
@@ -877,8 +940,36 @@ To integrate with your React frontend:
 2. Use the chat endpoint for conversational UI
 3. Use specialized endpoints for specific features
 4. Maintain conversation history for context
+5. Use task content generation via the ADK `/run` endpoint
 
-See the existing `backendApi.ts` file for examples.
+### Task Content Generation Integration
+
+The frontend automatically integrates task content generation:
+
+1. **TaskPanel Component** (`src/components/TaskPanel.tsx`):
+   - Displays a "Generate Content" button (✨ icon) for each task
+   - Calls `generateTaskContent()` from `learningAgent.ts` service
+   - Automatically attaches generated markdown to the task
+
+2. **Service Layer** (`src/services/learningAgent.ts`):
+   - `generateTaskContent()` function handles API communication
+   - Builds request with event, task, topic, and context information
+   - Converts markdown response to `TaskDocument` format
+   - Handles errors and loading states
+
+3. **Usage Flow**:
+   ```
+   User clicks Generate Content button
+   → Frontend calls generateTaskContent()
+   → Service sends request to ADK API /run endpoint
+   → Root agent delegates to single_task_content_agent
+   → Agent generates markdown content
+   → Frontend receives markdown
+   → Markdown converted to TaskDocument
+   → Automatically attached to task
+   ```
+
+See the existing `learningAgent.ts` file for implementation examples.
 
 ## Resources
 
